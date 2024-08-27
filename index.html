@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Catch the Ball Game</title>
+    <style>
+        body {
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-color: #333;
+            color: white;
+            font-family: Arial, sans-serif;
+        }
+
+        #gameContainer {
+            position: relative;
+            width: 300px;
+            height: 500px;
+            border: 2px solid #fff;
+            overflow: hidden;
+            background-color: #222;
+        }
+
+        #paddle {
+            position: absolute;
+            bottom: 10px;
+            width: 80px;
+            height: 15px;
+            background-color: #00f;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+
+        #ball {
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            background-color: #f00;
+            border-radius: 50%;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+
+        #scoreContainer {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            font-size: 18px;
+        }
+
+        #gameOver, #countdownPopup, #questionPopup {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: rgba(0, 0, 0, 0.7);
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+            display: none;
+        }
+
+        #gameOver button, #questionPopup button {
+            background-color: #00f;
+            border: none;
+            color: white;
+            padding: 10px 20px;
+            margin-top: 10px;
+            cursor: pointer;
+        }
+
+        #gameOver button:hover, #questionPopup button:hover {
+            background-color: #0077cc;
+        }
+
+        #countdownPopup {
+            font-size: 24px;
+        }
+
+        #questionPopup input {
+            margin: 10px 0;
+            padding: 5px;
+        }
+        #copyright {
+          display: flex;
+          position: absolute;
+            margin-top: 80vh;
+            font-size: 12px;
+            color: #ccc;
+        }
+    </style>
+</head>
+<body>
+    <div id="gameContainer">
+        <div id="paddle"></div>
+        <div id="ball"></div>
+        <div id="scoreContainer">
+            Score: <span id="score">0</span> | High Score: <span id="highScore">0</span>
+        </div>
+        <div id="gameOver">
+            <h2>Game Over</h2>
+            <button onclick="restartGame()">Restart</button>
+        </div>
+        <div id="countdownPopup">
+            <p>Jawaban Lu Salah Blog <span id="countdown">5</span> seconds</p>
+        </div>
+        <div id="questionPopup">
+            <h2>Pertanyaan:</h2>
+            <p id="questionText"></p>
+            <input type="text" id="answerInput" placeholder="Jawaban">
+            <button onclick="submitAnswer()">Submit</button>
+        </div>
+    </div>
+    <audio id="bgMusic" src="Mawang.mp3" loop></audio>
+    <div id="copyright">
+      @copyright2024 : Muhammad Rifqi Alfadillah
+    </div>
+    <script>
+        const gameContainer = document.getElementById('gameContainer');
+        const paddle = document.getElementById('paddle');
+        const ball = document.getElementById('ball');
+        const gameOverScreen = document.getElementById('gameOver');
+        const countdownPopup = document.getElementById('countdownPopup');
+        const questionPopup = document.getElementById('questionPopup');
+        const questionText = document.getElementById('questionText');
+        const answerInput = document.getElementById('answerInput');
+        const countdownElement = document.getElementById('countdown');
+        const bgMusic = document.getElementById('bgMusic');
+        const scoreElement = document.getElementById('score');
+        const highScoreElement = document.getElementById('highScore');
+
+        let ballX = gameContainer.clientWidth / 2 - ball.clientWidth / 2;
+        let ballY = 0;
+        let ballSpeedX = 2;
+        let ballSpeedY = 2;
+        let paddleX = gameContainer.clientWidth / 2 - paddle.clientWidth / 2;
+        let targetPaddleX = paddleX;
+        let gameRunning = true;
+        let score = 0;
+        let highScore = localStorage.getItem('highScore') || 0;
+        let wrongAnswers = 0;
+        highScoreElement.textContent = highScore;
+
+        const question = "Siapa Orang Terganteng di dunia"; // Contoh pertanyaan
+        const correctAnswer = "Rifqi"; // Jawaban benar
+
+        document.addEventListener('mousemove', function(event) {
+            if (!gameRunning) return;
+
+            let rect = gameContainer.getBoundingClientRect();
+            targetPaddleX = event.clientX - rect.left - paddle.clientWidth / 2;
+            if (targetPaddleX < 0) targetPaddleX = 0;
+            if (targetPaddleX > gameContainer.clientWidth - paddle.clientWidth) targetPaddleX = gameContainer.clientWidth - paddle.clientWidth;
+        });
+
+        function updateBallPosition() {
+            ballX += ballSpeedX;
+            ballY += ballSpeedY;
+
+            if (ballX < 0 || ballX > gameContainer.clientWidth - ball.clientWidth) {
+                ballSpeedX = -ballSpeedX;
+            }
+
+            if (ballY < 0) {
+                ballSpeedY = -ballSpeedY;
+            } else if (ballY > gameContainer.clientHeight - ball.clientHeight) {
+                if (ballX + ball.clientWidth > paddleX && ballX < paddleX + paddle.clientWidth) {
+                    ballSpeedY = -ballSpeedY;
+                    increaseScore();
+                } else {
+                    endGame();
+                }
+            }
+
+            ball.style.left = ballX + 'px';
+            ball.style.top = ballY + 'px';
+        }
+
+        function updatePaddlePosition() {
+            paddleX += (targetPaddleX - paddleX) * 0.1;
+            paddle.style.left = paddleX + 'px';
+        }
+
+        function increaseScore() {
+            score++;
+            scoreElement.textContent = score;
+            if (score > highScore) {
+                highScore = score;
+                localStorage.setItem('highScore', highScore);
+                highScoreElement.textContent = highScore;
+            }
+        }
+
+        function resetBall() {
+            ballX = gameContainer.clientWidth / 2 - ball.clientWidth / 2;
+            ballY = 0;
+            ballSpeedY = 2;
+            ballSpeedX = (Math.random() - 0.5) * 4;
+        }
+
+        function endGame() {
+            gameRunning = false;
+            gameOverScreen.style.display = 'none';
+            questionPopup.style.display = 'block';
+            questionText.textContent = question;
+            bgMusic.pause();
+        }
+
+        function submitAnswer() {
+            if (answerInput.value.trim().toLowerCase() === correctAnswer.toLowerCase()) {
+                questionPopup.style.display = 'none';
+                wrongAnswers = 0; // Reset kesalahan setelah jawaban benar
+                resumeGame();
+            } else {
+                wrongAnswers++;
+                questionPopup.style.display = 'none';
+                startCountdown();
+            }
+        }
+
+        function startCountdown() {
+            let countdown = 5 + (wrongAnswers - 1) * 5; // Tambah 5 detik untuk setiap kesalahan setelah yang pertama
+            countdownPopup.style.display = 'block';
+            const countdownInterval = setInterval(() => {
+                countdown--;
+                countdownElement.textContent = countdown;
+                if (countdown <= 0) {
+                    clearInterval(countdownInterval);
+                    countdownPopup.style.display = 'none';
+                    resumeGame();
+                }
+            }, 1000);
+        }
+
+        function resumeGame() {
+            gameRunning = true;
+            score = 0;
+            scoreElement.textContent = score;
+            resetBall();
+            bgMusic.currentTime = 0;
+            bgMusic.play();
+            gameLoop();
+        }
+
+        function restartGame() {
+            gameRunning = true;
+            gameOverScreen.style.display = 'none';
+            questionPopup.style.display = 'none';
+            countdownPopup.style.display = 'none';
+            wrongAnswers = 0; // Reset kesalahan saat memulai ulang permainan
+            score = 0;
+            scoreElement.textContent = score;
+            resetBall();
+            bgMusic.currentTime = 0;
+            bgMusic.play();
+            gameLoop();
+        }
+
+        function gameLoop() {
+            if (!gameRunning) return;
+
+            updateBallPosition();
+            updatePaddlePosition();
+            requestAnimationFrame(gameLoop);
+        }
+
+        // Mulai permainan dan musik saat halaman dimuat
+        window.onload = function() {
+            // Tunggu interaksi pengguna jika diperlukan
+            document.body.addEventListener('click', function() {
+                if (!bgMusic.played.length) {  // Jika musik belum diputar
+                    bgMusic.play();
+                }
+            });
+            gameLoop();
+        };
+    </script>
+</body>
+</html>
